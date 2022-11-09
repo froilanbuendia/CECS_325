@@ -1,0 +1,1 @@
+spellChecker american-english.txt flatland.txt > words.out 

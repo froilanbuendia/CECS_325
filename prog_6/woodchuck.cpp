@@ -48,18 +48,18 @@ int main(int argc, char *argv[])
 	
 		if (regex_match(word,reg))
 	    	cout << "match:"<<word<<endl;
-	    else
+	    else{
 	    	cout << "no match:"<<word<<endl;
-			auto pos = misspelled.find(word);
-            if (pos == misspelled.end()){
-                misspelled[word] = 1;
-            }else{
-                pos -> second++;
+			// auto pos = misspelled.find(word);
+            // if (pos == misspelled.end()){
+            //     misspelled[word] = 1;
+            // }else{
+            //     pos -> second++;
             }
 	}
-	cout << "Misspelled Words: " << misspelled.size() << endl;
-    for (auto p = misspelled.begin(); p!= misspelled.end(); p++){
-        cout << setw(20) << left << p-> first << setw(10) << right << p -> second << endl;
-    }
+	// cout << "Misspelled Words: " << misspelled.size() << endl;
+    // for (auto p = misspelled.begin(); p!= misspelled.end(); p++){
+    //     cout << setw(20) << left << p-> first << setw(10) << right << p -> second << endl;
+    // }
 	
 }
