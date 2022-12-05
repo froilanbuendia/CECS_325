@@ -26,6 +26,7 @@ namespace MemoryManager
 
 		unsigned int value;	// used to facilitate bit shifting and masking
 
+		cout << endl; // start on a new line
 		cout << "               Pool                     Unsignd  Unsigned " << endl;
 		cout << "Mem Add        indx   bits   chr ASCII#  short      int    " << endl;
 		cout << "-------------- ---- -------- --- ------ ------- ------------" << endl;
@@ -44,7 +45,11 @@ namespace MemoryManager
 			}
 			cout << " ";
 
-			cout << '|' << *(char*)(MM_pool + i) << "| (";		// the ASCII character of the 8 bits (1 byte)
+            if (MM_pool[i] < 32)   // non-printable character so print a blank
+            	cout << '|' << ' ' << "| (";	
+            else                    // characger is printable so print it
+				cout << '|' << *(char*)(MM_pool + i) << "| (";		// the ASCII character of the 8 bits (1 byte)
+
 			cout << setw(4) << ((int)(*((unsigned char*)(MM_pool + i)))) << ")";	// the ASCII number of the character
 
 			cout << " (" << setw(5) << (*(unsigned short*)(MM_pool + i)) << ")";	// the unsigned short value of 16 bits (2 bytes)
@@ -68,55 +73,182 @@ namespace MemoryManager
 		int prevLink = 4; // offset index for the prev link
 
 		*(unsigned short*)(MM_pool + freeHead) = 6; // freelist starts at byte 6
-		*(unsigned short*)(MM_pool + 6) = MM_POOL_SIZE - 6; // we used 6 bytes to get things started
 		*(unsigned short*)(MM_pool + inUseHead) = 0;	// nothing in the inUse list yet
 		*(unsigned short*)(MM_pool + usedHead) = 0; // nothing in the used list yet
 
 	}
 
 	// return a pointer inside the memory pool
-	// If no chunk can accommodate aSize call onOutOfMemory() - still 
 	void* allocate(int aSize)
 	{
+		// If no chunk can accommodate aSize call onOutOfMemory()
 		if ((int)(*(unsigned short*)(MM_pool)) + aSize + 6 > 65536)
 			onOutOfMemory();
-	// TBD
+		// TBD 
+		// need to see where our free space is
+		// grab free head
+		// auto free_index = *(unsigned short*)(MM_pool + 0);
+		// auto inuse_index = *(unsigned short*)(MM_pool + 2);
+		auto size = aSize + 6; 
+		int old_free = (int)(*(unsigned short*)(MM_pool + 0));
+		int old_inuse = (int)(*(unsigned short*)(MM_pool + 2));
+		int next_free = (int)(*(unsigned short*)(MM_pool + size));
+// ;		*(unsigned short*)MM_pool = (free_index + aSize + 6); // memory allocated for free memory
+		int prev = old_inuse + 4;
+		int curr_next = old_free + 2;
+		int curr_prev = old_free + 4;
+
+		int inuse = (int)*(unsigned short*)(MM_pool + inuse);
+		*(unsigned short*)(MM_pool + inuse) = old_free;
+		*(unsigned short*)(MM_pool) = next_free; 
+
+		if (old_free != 6){
+			*(unsigned short*)(MM_pool + prev) = old_free;
+		}
+		*(unsigned short*)(MM_pool + curr_next) = old_inuse;
+		*(unsigned short*)(MM_pool + curr_prev) = 0;
+
+		*(unsigned short*)(MM_pool + old_free) = aSize;
+
+		freeMemory();
+		inUseMemory();
+		return (void*)(MM_pool + *(unsigned short*)MM_pool - aSize);
+	
+		// *(unsigned short*)MM_pool = (free_index - aSize - 4); // memory allocated for inUse memory
+		// return pointer to start of data
 	}
 
 	// Free up a chunk previously allocated
 	void deallocate(void* aPointer)
 	{
-	// TBD
+		// TBD
+		int size = MM_pool[((char*)aPointer - MM_pool) - 6] + 6;
+		int index = (char*)aPointer - MM_pool - 6;
+		int curr_d = index;
+
+		int prev = *(unsigned short*)(MM_pool + 2);
+		int next = *(unsigned short*)(MM_pool + 4);
+
+		int old_used = *(unsigned short*)(MM_pool + 4);
+		auto used_index = *(unsigned short*)(MM_pool + 4);
+		(int)(*(unsigned short*)(used_index + 4));
+		usedMemory();
+		
 	}
-	// returns the number of bytes allocated by ptr
+
 	int size(void *ptr)
 	{
-	// TBD
+		// TBD
 	}
 	
+	//---
+	//--- support routines
+	//--- 
+
 	// Will scan the memory pool and return the total free space remaining
 	int freeMemory(void)
 	{
-	// TBD
+		//TBD
+		//freememory head index - size of MMpool
+		// (int&)freeMemory = ;
+		int cur = *(unsigned short*)&MM_pool[6];
+		int size = *(unsigned short*)&MM_pool[cur];
+		int next = *(unsigned short*)&MM_pool[cur + 2];
+		int prev = *(unsigned short*)&MM_pool[cur + 4];
+		// *(unsigned short*)(MM_pool + next_free) = MM_POOL_SIZE - next_free;
+		while (cur != 0){
+			cur = next;
+			next = *(unsigned short*)&MM_pool[cur+2];
+			prev = *(unsigned short*)&MM_pool[cur+4];
+		}
+		return *(unsigned short*)&MM_pool;
 	}
+
 
 	// Will scan the memory pool and return the total used memory - memory that has been deallocated
 	int usedMemory(void)
 	{
-	// TBD
+		//TBD
+		int cur = *(unsigned short*)&MM_pool[4];
+		int size = *(unsigned short*)&MM_pool[cur];
+		int next = *(unsigned short*)&MM_pool[cur+2];
+		int prev = *(unsigned short*)&MM_pool[cur+4];
+		while (cur != 0)
+		{
+			cur = next;
+			size = *(unsigned short*)&MM_pool[cur];
+			next = *(unsigned short*)&MM_pool[cur+2];
+			prev = *(unsigned short*)&MM_pool[cur+4];
+		}
+		return *(unsigned short*)&MM_pool;
 	}
 
 	// Will scan the memory pool and return the total in use memory - memory being curretnly used
 	int inUseMemory(void)
 	{
-	// TBD
+		//TBD
+		int cur = *(unsigned short*)&MM_pool[2];
+		int size = *(unsigned short*)&MM_pool[cur];
+		int next = *(unsigned short*)&MM_pool[cur+2];
+		int prev = *(unsigned short*)&MM_pool[cur+4];
+		while (cur != 0)
+		{
+			cur = next;
+			size = *(unsigned short*)&MM_pool[cur];
+			next = *(unsigned short*)&MM_pool[cur+2];
+			prev = *(unsigned short*)&MM_pool[cur+4];
+		}
+		return *(unsigned short*)&MM_pool;
 	}
 
+	// helper function to see the InUse list in memory
+	void traverseInUse()
+	{
+		int cur = *(unsigned short*)&MM_pool[2];
+		int size = *(unsigned short*)&MM_pool[cur];
+		int next = *(unsigned short*)&MM_pool[cur+2];
+		int prev = *(unsigned short*)&MM_pool[cur+4];
+		cout << "\nTraversing InUse Memory....";
+		cout << "\n      InUse Head:"<<cur;
+		while (cur != 0)
+		{
+			cout << "\n        Index:"<<cur<<" Size:"<<size<<" Next:"<<next<<" Prev:"<<prev;
+			cur = next;
+			size = *(unsigned short*)&MM_pool[cur];
+			next = *(unsigned short*)&MM_pool[cur+2];
+			prev = *(unsigned short*)&MM_pool[cur+4];
+		}
+	}
+
+	//Helper function to see the Used list in memory
+	void traverseUsed()
+	{
+		int cur = *(unsigned short*)&MM_pool[4];
+		int size = *(unsigned short*)&MM_pool[cur];
+		int next = *(unsigned short*)&MM_pool[cur+2];
+		int prev = *(unsigned short*)&MM_pool[cur+4];
+		cout << "\nTraversing Used Memory....";
+		cout << "\n      Used Head:"<<cur;
+		while (cur != 0)
+		{
+			cout << "\n        Index:"<<cur<<" Size:"<<size<<" Next:"<<next<<" Prev:"<<prev;
+			cur = next;
+			size = *(unsigned short*)&MM_pool[cur];
+			next = *(unsigned short*)&MM_pool[cur+2];
+			prev = *(unsigned short*)&MM_pool[cur+4];
+		}
+		
+	}
+
+
+	// this is called from Allocate if there is no more memory availalbe
 	void onOutOfMemory(void)
- 	{
-    std::cout << "\nMemory pool out of memory\n" << std::endl;
-    std::cout << "\n---Press \"Enter\" key to end program---:";
-	cin.get();
-    exit( 1 );  // exit main
+  	{
+    	std::cout << "\nMemory pool out of memory\n" << std::endl;
+    	std::cout << "\n---Press \"Enter\" key to end program---:";
+
+		cin.get();
+
+    	exit( 1 );
   }
 }

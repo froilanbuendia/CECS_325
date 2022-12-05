@@ -1,1 +1,2 @@
-spellChecker american-english.txt flatland.txt > words.out 
+spellChecker american-english.txt flatland.txt > words.out
+head -20 words.out

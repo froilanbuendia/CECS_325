@@ -33,61 +33,46 @@ string clean(const string& s){// removes all punctations except for ' and - as w
 int main(int argc, char *argv[]){
     string dict;
     string word;
-    int count = 0;
+    // int count = 0;
     map <string, int> misspelled;
     unordered_set <string> dict_set;
-    // regex reg("^[a-zA-Z]+[\'][a-zA-Z]{0,1}|^[a-zA-Z]+[a-zA-Z-]+");
-    regex reg("^[a-z]+[\'][a-z]{0,1}|^[a-z]+[a-z-]+|^[a-z]+'-+[a-z]+|^[a-z]+-[a-z]+'[a-z]");
+    // regex reg("^[a-z]+[\'][a-z]{0,1}|^[a-z]+[a-z-]+");
+    // regex reg("^[a-z]+[\'][a-z]{0,1}|^[a-z]+[a-z-]+|^[a-z]+'-+[a-z]+|^[a-z]+-[a-z]+'[a-z]");
     // regex reg("^[a-zA-Z]+[\'][a-zA-Z]{0,1}|^[a-zA-Z]+[a-zA-Z-]+|^'[a-zA-Z-]+'|-+[a-zA-Z]+|^'[a-zA-Z]+|'-|^'[a-zA-Z]'+[[a-zA-Z-]+|^-'|^\'[a-zA-Z]+\'-+[a-zA-Z]+|-[a-zA-Z]+-|^-[a-zA-Z]'|^[a-zA-Z]'[a-zA-Z]'|^[a-zA-Z]'[a-zA-Z]'[a-zA-Z]'|^[a-zA-Z]+-[a-zA-Z]+'[a-zA-Z]+|^[a-zA-Z]+'-+[a-zA-Z]+");
-    regex firstCharAlpha("^[a-zA-Z]");
+    regex reg("[a-z]+\'?-*[a-z]*");
+    regex punct("[^-'a-z]");
     ifstream fin;
-    // inserts the dictionary items into unordered set
+    // inserts the dictionary items into unordered sets
     fin.open (argv[1]);
     while  (fin >> dict){
-        dict = clean(dict);
+        dict = clean(dict); // cleans dict so everything is lowercase
         dict_set.insert(dict);
     }
     fin.close();
     fin.open(argv[2]);
     //reads through flatland.txt
     while (fin >> word){
-        // regex apostrophe ("^[a-zA-Z]+[\'][a-zA-Z]{0,1}");
-        // regex hyphen ("^([a-zA-Z])+([a-zA-Z-]+)");
-        // regex punct("[^\\w'-]");
-        regex line ("^[-]{0,100}");
-        regex alpha ("^[a-zA-Z]+");
-        // word = regex_replace(word, punct, "");
-        word = clean(word);
+        transform(word.begin(),word.end(),word.begin(),::tolower); // changes word to lowercase
+        for (int i = 0; i < word.size(); i++){
+            word = regex_replace(word, punct, "");
+        }
         if (word != ""){ // checks if word isn't empty after cleaning
             auto pos = misspelled.find(word);
             // checks if word is isn't in the dictionary
-            if (dict_set.count(word) == 0){
-                // if the word is all letters and just not in the dictionary
-                if (regex_match(word, alpha)){
-                    if (pos == misspelled.end()){
+            if (dict_set.count(word) == 0 && (regex_match(word, reg))){
+                if (pos == misspelled.end()){
                         misspelled[word] = 1;
                     }else{
                         pos -> second++;
                     }
-                    count++;
-                // if the word contains ' or - and doesn't pass the regex
-                }else if((!regex_match(word, reg) && !regex_match(word, line))){
-                    if (pos == misspelled.end()){
-                        misspelled[word] = 1;
-                    }else{
-                        pos -> second++;
-                    }
-                    count++;
-                }
             }   
         }
     }
     fin.close();
-    // counts misspelled words
     // cout << "Misspelled Words: " << count << endl;
-    cout << "Misspelled Words: " << misspelled.size() << endl;
+    cout << "Misspelled Words: " << '(' << misspelled.size() << ')' << endl; // outputs size of misspelled words
     // outputs all the mispelled words
-    for (auto p = misspelled.begin(); p!= misspelled.end(); p++){
+    for (auto p = misspelled.begin(); p!= misspelled.end(); p++){ // outputs misspelled words and frequency
         cout << setw(20) << left << p -> first << setw(10) << right << p -> second << endl;
     }
     return 0;
