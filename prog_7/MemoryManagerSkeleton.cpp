@@ -89,17 +89,19 @@ namespace MemoryManager
 		// grab free head
 		// auto free_index = *(unsigned short*)(MM_pool + 0);
 		// auto inuse_index = *(unsigned short*)(MM_pool + 2);
-		auto size = aSize + 6; 
-		int old_free = (int)(*(unsigned short*)(MM_pool + 0));
+		int size = aSize + 6; 
+		int old_free = (int)(*(unsigned short*)(MM_pool));
 		int old_inuse = (int)(*(unsigned short*)(MM_pool + 2));
-		int next_free = (int)(*(unsigned short*)(MM_pool + size));
-// ;		*(unsigned short*)MM_pool = (free_index + aSize + 6); // memory allocated for free memory
+		int next_free = (int)(*(unsigned short*)(MM_pool)) + size;
+		//*(unsigned short*)MM_pool = (free_index + aSize + 6); // memory allocated for free memory
 		int prev = old_inuse + 4;
+
 		int curr_next = old_free + 2;
 		int curr_prev = old_free + 4;
 
-		int inuse = (int)*(unsigned short*)(MM_pool + inuse);
-		*(unsigned short*)(MM_pool + inuse) = old_free;
+		int inuse = (int)*(unsigned short*)(MM_pool + 2);
+
+		*(unsigned short*)(MM_pool + 2) = old_free;
 		*(unsigned short*)(MM_pool) = next_free; 
 
 		if (old_free != 6){
@@ -110,8 +112,10 @@ namespace MemoryManager
 
 		*(unsigned short*)(MM_pool + old_free) = aSize;
 
-		freeMemory();
-		inUseMemory();
+		*(unsigned short*)(MM_pool + next_free) = MM_POOL_SIZE - next_free;
+
+		// freeMemory();
+		// inUseMemory();
 		return (void*)(MM_pool + *(unsigned short*)MM_pool - aSize);
 	
 		// *(unsigned short*)MM_pool = (free_index - aSize - 4); // memory allocated for inUse memory
@@ -125,20 +129,37 @@ namespace MemoryManager
 		int size = MM_pool[((char*)aPointer - MM_pool) - 6] + 6;
 		int index = (char*)aPointer - MM_pool - 6;
 		int curr_d = index;
+		int free = 0;
+		int inuse = 2;
+		int used = 4; 
 
-		int prev = *(unsigned short*)(MM_pool + 2);
-		int next = *(unsigned short*)(MM_pool + 4);
+		int next = 2;
+		int prev = 4;
 
-		int old_used = *(unsigned short*)(MM_pool + 4);
-		auto used_index = *(unsigned short*)(MM_pool + 4);
-		(int)(*(unsigned short*)(used_index + 4));
-		usedMemory();
-		
+		// int old_used = *(unsigned short*)(MM_pool + 4);
+		// int used_index = 4;
+		// (int)(*(unsigned short*)(used_index + 4));
+		// usedMemory();
+
+		int prevN = *(unsigned short*)(MM_pool + curr_d + next);
+		int nextN = *(unsigned short*)(MM_pool + curr_d + prev);
+
+		*(unsigned short*)(MM_pool + prevN + prev) = nextN;
+		*(unsigned short*)(MM_pool + nextN + next) = prevN;
+
+		int old_used = *(unsigned short*)(MM_pool + used);
+
+		*(unsigned short*)(MM_pool + curr_d + prev) = 0;
+		*(unsigned short*)(MM_pool + curr_d + next) = old_used;
+
+		*(unsigned short*)(MM_pool + old_used + prev) = curr_d;
+		*(unsigned short*)(MM_pool + used) = curr_d;
 	}
 
 	int size(void *ptr)
 	{
 		// TBD
+		return sizeof(&ptr);
 	}
 	
 	//---
@@ -149,19 +170,19 @@ namespace MemoryManager
 	int freeMemory(void)
 	{
 		//TBD
-		//freememory head index - size of MMpool
+		// freememory head index - size of MMpool
 		// (int&)freeMemory = ;
-		int cur = *(unsigned short*)&MM_pool[6];
-		int size = *(unsigned short*)&MM_pool[cur];
-		int next = *(unsigned short*)&MM_pool[cur + 2];
-		int prev = *(unsigned short*)&MM_pool[cur + 4];
-		// *(unsigned short*)(MM_pool + next_free) = MM_POOL_SIZE - next_free;
-		while (cur != 0){
-			cur = next;
-			next = *(unsigned short*)&MM_pool[cur+2];
-			prev = *(unsigned short*)&MM_pool[cur+4];
-		}
-		return *(unsigned short*)&MM_pool;
+		int free = 0;
+		// int size = *(unsigned short*)&MM_pool[cur];
+		// int next = *(unsigned short*)&MM_pool[cur + 2];
+		// int prev = *(unsigned short*)&MM_pool[cur + 4];
+		// // *(unsigned short*)(MM_pool + next_free) = MM_POOL_SIZE - next_free;
+		// while (cur != 0){
+		// 	cur = next;
+		// 	next = *(unsigned short*)&MM_pool[cur+2];
+		// 	prev = *(unsigned short*)&MM_pool[cur+4];
+		// }
+		return MM_POOL_SIZE - *(unsigned short*)(MM_pool + free);
 	}
 
 
@@ -169,36 +190,38 @@ namespace MemoryManager
 	int usedMemory(void)
 	{
 		//TBD
-		int cur = *(unsigned short*)&MM_pool[4];
-		int size = *(unsigned short*)&MM_pool[cur];
-		int next = *(unsigned short*)&MM_pool[cur+2];
-		int prev = *(unsigned short*)&MM_pool[cur+4];
-		while (cur != 0)
+		int cur = 0;
+		// int size = *(unsigned short*)&MM_pool[cur];
+		int next = *(unsigned short*)(MM_pool + 4);
+		// int prev = *(unsigned short*)&MM_pool[cur+4];
+		while (next > 0)
 		{
-			cur = next;
-			size = *(unsigned short*)&MM_pool[cur];
-			next = *(unsigned short*)&MM_pool[cur+2];
-			prev = *(unsigned short*)&MM_pool[cur+4];
+			cur = cur + *(unsigned short*)(MM_pool + next) + 6;
+			// size = *(unsigned short*)&MM_pool[cur];
+			next = *(unsigned short*)(MM_pool + next + 2);
+			// prev = *(unsigned short*)&MM_pool[cur+4];
 		}
-		return *(unsigned short*)&MM_pool;
+		return cur;
 	}
 
 	// Will scan the memory pool and return the total in use memory - memory being curretnly used
 	int inUseMemory(void)
 	{
 		//TBD
-		int cur = *(unsigned short*)&MM_pool[2];
-		int size = *(unsigned short*)&MM_pool[cur];
-		int next = *(unsigned short*)&MM_pool[cur+2];
-		int prev = *(unsigned short*)&MM_pool[cur+4];
-		while (cur != 0)
-		{
-			cur = next;
-			size = *(unsigned short*)&MM_pool[cur];
-			next = *(unsigned short*)&MM_pool[cur+2];
-			prev = *(unsigned short*)&MM_pool[cur+4];
-		}
-		return *(unsigned short*)&MM_pool;
+		// int cur = 0;
+		// // int size = *(unsigned short*)&MM_pool[cur];
+		// int next = *(unsigned short*)&MM_pool[cur+2];
+		// // int prev = *(unsigned short*)&MM_pool[cur+4];
+		// while (next != 0)
+		// {
+		// 	cur = *(unsigned short*)&MM_pool[next + 4];
+		// 	// size = *(unsigned short*)&MM_pool[cur];
+		// 	next = *(unsigned short*)&MM_pool[cur+2];
+		// 	// prev = *(unsigned short*)&MM_pool[cur+4];
+		// }
+		// return cur;
+		int total = MM_POOL_SIZE - freeMemory() - 6;
+		return total - usedMemory();
 	}
 
 	// helper function to see the InUse list in memory
@@ -217,6 +240,7 @@ namespace MemoryManager
 			size = *(unsigned short*)&MM_pool[cur];
 			next = *(unsigned short*)&MM_pool[cur+2];
 			prev = *(unsigned short*)&MM_pool[cur+4];
+			// cout <<"here";
 		}
 	}
 
@@ -236,6 +260,7 @@ namespace MemoryManager
 			size = *(unsigned short*)&MM_pool[cur];
 			next = *(unsigned short*)&MM_pool[cur+2];
 			prev = *(unsigned short*)&MM_pool[cur+4];
+			// cout << "here";
 		}
 		
 	}

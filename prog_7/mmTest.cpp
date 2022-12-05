@@ -30,7 +30,7 @@ int main(void)
 
     cout<<"Program Starting...";
     memStats();
-
+    
     cout<<"\n....allocate some memory:";
     
     short* shortPtr = (short*) allocate(sizeof(short));
@@ -39,7 +39,7 @@ int main(void)
     char* lname = (char*)allocate(6);
     char *fname = (char*)allocate(6);
     int * maxIntPtr = (int*) allocate(sizeof(int));
-
+    
     memStats();
     
     cout << "\n....assign some values:";
