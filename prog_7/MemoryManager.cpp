@@ -85,81 +85,78 @@ namespace MemoryManager
 		if ((int)(*(unsigned short*)(MM_pool)) + aSize + 6 > 65536)
 			onOutOfMemory();
 		// TBD 
-		// need to see where our free space is
-		// grab free head
-		// auto free_index = *(unsigned short*)(MM_pool + 0);
-		// auto inuse_index = *(unsigned short*)(MM_pool + 2);
-		int size = aSize + 6; 
-		int old_free = (int)(*(unsigned short*)(MM_pool));
-		int old_inuse = (int)(*(unsigned short*)(MM_pool + 2));
-		int next_free = (int)(*(unsigned short*)(MM_pool)) + size;
-		//*(unsigned short*)MM_pool = (free_index + aSize + 6); // memory allocated for free memory
-		int prev = old_inuse + 4;
 
-		int curr_next = old_free + 2;
-		int curr_prev = old_free + 4;
+		// locations from  memView
+		int freeHead = 0; // starting index of the freelist
+		int inUseHead = 2; // starting index of the inUselist
+		int nextLink = 2; // offset index of the next link
+		int prevLink = 4; // offset index for the prev link
 
-		int inuse = (int)*(unsigned short*)(MM_pool + 2);
+		// old free and old inuse heads
+		auto oldFree = *(unsigned short*)(MM_pool + freeHead);
+		auto oldinUse = *(unsigned short*)(MM_pool + inUseHead); // also a temp variable for new node
 
-		*(unsigned short*)(MM_pool + 2) = old_free;
-		*(unsigned short*)(MM_pool) = next_free; 
+		*(unsigned short*)(MM_pool + inUseHead) = oldFree;
 
-		if (old_free != 6){
-			*(unsigned short*)(MM_pool + prev) = old_free;
+		// nextFree head
+		auto nextFree = oldFree + (aSize + (nextLink + prevLink));
+		*(unsigned short*)(MM_pool)  = nextFree;
+
+		// address of the next node
+		auto nextNode = *(unsigned short*)(MM_pool + inUseHead);
+
+		// changes free, inuse, and used
+		*(unsigned short*)(MM_pool + nextNode) = aSize;
+		*(unsigned short*)(MM_pool + nextNode + nextLink) = oldinUse;
+		*(unsigned short*)(MM_pool + nextNode + prevLink) = freeHead;
+		if(oldFree != 6){
+        	*(unsigned short*)(MM_pool + oldinUse + prevLink) = nextNode;
 		}
-		*(unsigned short*)(MM_pool + curr_next) = old_inuse;
-		*(unsigned short*)(MM_pool + curr_prev) = 0;
-
-		*(unsigned short*)(MM_pool + old_free) = aSize;
-
-		*(unsigned short*)(MM_pool + next_free) = MM_POOL_SIZE - next_free;
-
-		// freeMemory();
-		// inUseMemory();
-		return (void*)(MM_pool + *(unsigned short*)MM_pool - aSize);
-	
-		// *(unsigned short*)MM_pool = (free_index - aSize - 4); // memory allocated for inUse memory
-		// return pointer to start of data
+		return (void*)(MM_pool + nextNode + (nextLink + prevLink));
 	}
 
 	// Free up a chunk previously allocated
 	void deallocate(void* aPointer)
 	{
 		// TBD
-		int size = MM_pool[((char*)aPointer - MM_pool) - 6] + 6;
-		int index = (char*)aPointer - MM_pool - 6;
-		int curr_d = index;
-		int free = 0;
-		int inuse = 2;
-		int used = 4; 
 
-		int next = 2;
-		int prev = 4;
+		// locations from  memView
+		int freeHead = 0; // starting index of the freelist
+		int usedHead = 4; // starting index for the used list - deallocated memory
+		int nextLink = 2; // offset index of the next link
+		int prevLink = 4; // offset index for the prev link
 
-		// int old_used = *(unsigned short*)(MM_pool + 4);
-		// int used_index = 4;
-		// (int)(*(unsigned short*)(used_index + 4));
-		// usedMemory();
+		// an array for deallocated nodes
+		int deleted[MM_POOL_SIZE];
+		int count = 0; // keeps count of how many deallocated nodes there are
+		int prevDeallocated = deleted[count];	
+		auto ptr = (char*)aPointer;	
+		auto del = ptr - MM_pool - 6; // deleted node
 
-		int prevN = *(unsigned short*)(MM_pool + curr_d + next);
-		int nextN = *(unsigned short*)(MM_pool + curr_d + prev);
+		// gets previous and next from deleted node
+		auto delNextN = *(unsigned short*)(MM_pool + del + nextLink); // temp to swap
+		auto prevDelN = *(unsigned short*)(MM_pool + del + nextLink); // next node from deleted node
+		auto delPrevN = *(unsigned short*)(MM_pool + del + prevLink); // temp to swap
+		auto nextDelN = *(unsigned short*)(MM_pool + del + prevLink); // prev node from deleted node
+		*(unsigned short*)(MM_pool + prevDelN + prevLink) = delPrevN;
+		*(unsigned short*)(MM_pool + nextDelN + nextLink) = delNextN;
 
-		*(unsigned short*)(MM_pool + prevN + prev) = nextN;
-		*(unsigned short*)(MM_pool + nextN + next) = prevN;
+		// changes prev and next of deleted node
+		*(unsigned short*)(MM_pool + del + prevLink) =  freeHead;
+        *(unsigned short*)(MM_pool + del + nextLink) = prevDeallocated;
 
-		int old_used = *(unsigned short*)(MM_pool + used);
+		// rearranges previously deallocated node
+		*(unsigned short*)(MM_pool + prevDeallocated + prevLink) = del;
+		*(unsigned short*)(MM_pool + prevLink) = del;
 
-		*(unsigned short*)(MM_pool + curr_d + prev) = 0;
-		*(unsigned short*)(MM_pool + curr_d + next) = old_used;
-
-		*(unsigned short*)(MM_pool + old_used + prev) = curr_d;
-		*(unsigned short*)(MM_pool + used) = curr_d;
+		deleted[count] = del;
+		count += 1;
 	}
 
 	int size(void *ptr)
 	{
 		// TBD
-		return sizeof(&ptr);
+		return *(unsigned short*)((char*)ptr - 6);
 	}
 	
 	//---
@@ -170,19 +167,7 @@ namespace MemoryManager
 	int freeMemory(void)
 	{
 		//TBD
-		// freememory head index - size of MMpool
-		// (int&)freeMemory = ;
-		int free = 0;
-		// int size = *(unsigned short*)&MM_pool[cur];
-		// int next = *(unsigned short*)&MM_pool[cur + 2];
-		// int prev = *(unsigned short*)&MM_pool[cur + 4];
-		// // *(unsigned short*)(MM_pool + next_free) = MM_POOL_SIZE - next_free;
-		// while (cur != 0){
-		// 	cur = next;
-		// 	next = *(unsigned short*)&MM_pool[cur+2];
-		// 	prev = *(unsigned short*)&MM_pool[cur+4];
-		// }
-		return MM_POOL_SIZE - *(unsigned short*)(MM_pool + free);
+		return MM_POOL_SIZE - *(unsigned short*)(MM_pool);
 	}
 
 
@@ -190,38 +175,40 @@ namespace MemoryManager
 	int usedMemory(void)
 	{
 		//TBD
-		int cur = 0;
-		// int size = *(unsigned short*)&MM_pool[cur];
-		int next = *(unsigned short*)(MM_pool + 4);
-		// int prev = *(unsigned short*)&MM_pool[cur+4];
-		while (next > 0)
-		{
-			cur = cur + *(unsigned short*)(MM_pool + next) + 6;
-			// size = *(unsigned short*)&MM_pool[cur];
-			next = *(unsigned short*)(MM_pool + next + 2);
-			// prev = *(unsigned short*)&MM_pool[cur+4];
+		int cur = *(unsigned short*)&MM_pool[4];
+		int size = *(unsigned short*)&MM_pool[cur];
+		int next = *(unsigned short*)&MM_pool[cur+2];
+		int prev = *(unsigned short*)&MM_pool[cur+4];
+		int total_used = 0;
+		while (cur != 0){
+			total_used += size + 6;
+			cur = next;
+			size = *(unsigned short*)&MM_pool[cur];
+			next = *(unsigned short*)&MM_pool[cur+2];
+			prev = *(unsigned short*)&MM_pool[cur+4];
 		}
-		return cur;
+
+		return total_used;
 	}
 
 	// Will scan the memory pool and return the total in use memory - memory being curretnly used
 	int inUseMemory(void)
 	{
 		//TBD
-		// int cur = 0;
-		// // int size = *(unsigned short*)&MM_pool[cur];
-		// int next = *(unsigned short*)&MM_pool[cur+2];
-		// // int prev = *(unsigned short*)&MM_pool[cur+4];
-		// while (next != 0)
-		// {
-		// 	cur = *(unsigned short*)&MM_pool[next + 4];
-		// 	// size = *(unsigned short*)&MM_pool[cur];
-		// 	next = *(unsigned short*)&MM_pool[cur+2];
-		// 	// prev = *(unsigned short*)&MM_pool[cur+4];
-		// }
-		// return cur;
-		int total = MM_POOL_SIZE - freeMemory() - 6;
-		return total - usedMemory();
+		int cur = *(unsigned short*)&MM_pool[2];
+		int size = *(unsigned short*)&MM_pool[cur];
+		int next = *(unsigned short*)&MM_pool[cur+2];
+		int prev = *(unsigned short*)&MM_pool[cur+4];
+		int total_inuse = 0;
+		while (cur != 0)
+		{
+			total_inuse += size + 6;
+			cur = next;
+			size = *(unsigned short*)&MM_pool[cur];
+			next = *(unsigned short*)&MM_pool[cur+2];
+			prev = *(unsigned short*)&MM_pool[cur+4];
+		}
+		return total_inuse;
 	}
 
 	// helper function to see the InUse list in memory
@@ -240,7 +227,6 @@ namespace MemoryManager
 			size = *(unsigned short*)&MM_pool[cur];
 			next = *(unsigned short*)&MM_pool[cur+2];
 			prev = *(unsigned short*)&MM_pool[cur+4];
-			// cout <<"here";
 		}
 	}
 
@@ -260,7 +246,6 @@ namespace MemoryManager
 			size = *(unsigned short*)&MM_pool[cur];
 			next = *(unsigned short*)&MM_pool[cur+2];
 			prev = *(unsigned short*)&MM_pool[cur+4];
-			// cout << "here";
 		}
 		
 	}
