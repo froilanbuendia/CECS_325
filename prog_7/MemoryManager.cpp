@@ -1,3 +1,10 @@
+// Name Froilan Buendia
+// Class (CECS 325-01)
+// Project Name (Prog 7 – Memory Manager)
+// Due Date (12/07/2022)
+//
+// I certify that this program is my own original work. I did not copy any part of this program from
+// any other source. I further certify that I typed each and every line of code in this program.
 #include "MemoryManager.h"
 
 #include <iomanip>
@@ -127,9 +134,13 @@ namespace MemoryManager
 		int prevLink = 4; // offset index for the prev link
 
 		// an array for deallocated nodes
-		int deleted[MM_POOL_SIZE];
+		// int deleted[MM_POOL_SIZE];
 		int count = 0; // keeps count of how many deallocated nodes there are
-		int prevDeallocated = deleted[count];	
+		int prevDeallocated;	
+		cout << endl <<prevDeallocated;
+		if (prevDeallocated > inUseMemory() + usedMemory()){
+			prevDeallocated = 0;
+		}
 		auto ptr = (char*)aPointer;	
 		auto del = ptr - MM_pool - 6; // deleted node
 
@@ -147,10 +158,13 @@ namespace MemoryManager
 
 		// rearranges previously deallocated node
 		*(unsigned short*)(MM_pool + prevDeallocated + prevLink) = del;
+		*(unsigned short*)(MM_pool + prevDeallocated + prevLink) = 0;
+		
 		*(unsigned short*)(MM_pool + prevLink) = del;
 
-		deleted[count] = del;
-		count += 1;
+		prevDeallocated = del;
+		// count += 1;
+		cout << endl << "prevD: " << prevDeallocated;
 	}
 
 	int size(void *ptr)
